@@ -1,8 +1,10 @@
 Non-Exclusive Leader Emergence in Highly Available Systems
 ===
 
+Published in [https://github.com/obsidiandynamics/nele](https://github.com/obsidiandynamics/nele) under a BSD (3-clause) license.
+
 # Overview
-This text describes the Non-Exclusive Leader Emergence (NELE, pronounced 'Nelly') protocol built on top of a shared, partitioned ledger capable of partition balancing (such as Apache Kafka or Amazon Kinesis). The protocol yields a non-exclusive leader in a group of contending processes for one of a number of notional roles, such that each role has at least one leader assigned to it. The number of roles is dynamic, as is the number of contending processes. This protocol is useful in scenarios where &mdash;
+This text describes the Non-Exclusive Leader Emergence (NELE, pronounced 'Nelly') protocol built on top of a shared, partitioned ledger capable of atomic partition balancing (such as Apache Kafka or Amazon Kinesis). The protocol yields a non-exclusive leader in a group of contending processes for one of a number of notional roles, such that each role has at least one leader assigned to it. The number of roles is dynamic, as is the number of contending processes. This protocol is useful in scenarios where &mdash;
 
 * There are a number of roles that need fulfilling, and it's desirable to share this load among several processes (likely deployed on different hosts);
 * While it's undesirable that a role is simultaneously filled by two processes at any point in time, the system will continue to function correctly. In other words, this may create duplication of work but cannot cause harm (the _safety_ property);
@@ -10,7 +12,7 @@ This text describes the Non-Exclusive Leader Emergence (NELE, pronounced 'Nelly'
 * The number of processes and roles is fully dynamic, and may vary on an _ad hoc_ basis. Processes and roles may be added and removed without reconfiguration of the group or downtime. This accommodates rolling deployments, scaling groups, and so forth;
 * The use of a dedicated Group Membership Service (GMS) is deemed unviable, and where an alternate primitive is sought. Perhaps the system is deployed in an environment where a robust GMS is not natively available, but other capabilities that may internally utilise a GMS may exist. Kinesis in AWS is one such example.
 
-**Note**: The term _emergence_ is used in favour of _election_ to communicate the notion of partial autonomy in the decision-making process. Under NELE, leaders aren't chosen directly, but through other phenomena that are observable by the affected group members, allowing them to infer that new leadership is in force. The protocol is also eventually consistent, in that members of the group may possess different views, but these views will invariably converge. This is contrary to a conventional GMS, where leadership election is the direct responsibility of the GMS, and is communicated to the affected parties.
+**Note**: The term _emergence_ is used in favour of _election_ to communicate the notion of partial autonomy in the decision-making process. Under NELE, leaders aren't chosen directly, but through other phenomena that are observable by the affected group members, allowing them to infer that new leadership is in force. The protocol is also eventually consistent, in that although members of the group may possess different views, these views will invariably converge. This is contrary to a conventional GMS, where leadership election is the direct responsibility of the GMS, and is communicated to the affected parties through view changes.
 
 
 # Practical implications
@@ -36,7 +38,7 @@ Ownership of _M<sub>i</sub>_ still requires a translation to a role assignment, 
 
 Where _size(M) &gt; size(R)_, ownership of a higher numbered partition in _M_ does not necessarily correspond to a role in _R_ &mdash; the mapping from _R_ to _M_ is injective. If _size(M) &lt; size(R)_, ownership of a partition in _M_ corresponds to (potentially) multiple roles in _R_, i.e. _R_ &rarr; _M_ is surjective. And finally, if _size(M) = size(R)_, the relationship is purely bijective. Hence the use of the modulo operation to remap the dynamic extent of _R_ for alignment with _M_, guaranteeing totality of _R_ &rarr; _M_. 
 
-**Note**: Without the modulo reduction, _R_ &rarr; _M_ will be partial when _size(M) &lt; size(R)_, resulting in an indefinitely unassigned role and violating the _liveness_ property of the protocol.
+**Note**: Without the modulo reduction, _R_ &rarr; _M_ will be partial when _size(M) &lt; size(R)_, resulting in an indefinitely dormant role and violating the _liveness_ property of the protocol.
 
 Under non-exclusive leadership, the value of _T_ is chosen such that _T_ is greater than the partition reassignment threshold of the broker. In Kafka, this is given by the property `session.timeout.ms` on the consumer, which is 10 seconds by default &mdash; so _T_ could be 30 seconds, allowing for up 20 seconds of overlap between successive leadership transitions. In other words, if the partition assignment is withdrawn from an existing leader, it may presume for a further 20 seconds that it is still leading, allowing for the emerging leader to take over. In that time frame, one or more roles may be fulfilled concurrently by both leaders &mdash; which is acceptable _a priori_. (In practice, 10 seconds is too long for HA systems that approach continuous availability; smaller values such as 100 milliseconds are more suitable.)
 
@@ -63,6 +65,4 @@ By the term _non-exclusive leader_ it is meant that at least one leader may be a
 
 In a continuously available system, two or more disjoint (non-overlapping) NELE process groups _P1_ and _P2_ (through to _PN_, if necessary) may be used concurrently on the same set _M_ (or a different set _M'_, hosted on an independent set of brokers) and a common _R_, such that any _R<sub>i</sub>_ would be assigned to a member in _P1_ and _P2_, such that there will be at least two leaders for any _R<sub>i</sub>_ at any point in time -- one from each set. Depending on the value of _T_, there may be three leaders during a transition event in any of the groups _P1_ or _P2_, assuming that process failures in _P1_ and _P2_ are uncorrelated.
 
-Furthermore, it is prudent to keep the process sets _P1_ and _P2_ not only disjoint, but also deployed on separate hosts, such that the failure of a process in _P1_ will not correlate to a failure in _P2_, where both failed processes may happen to share role assignments. 
-
-Alternatively, if _P1_ and _P2_ are to share their runtime environment and brokers for _M_, a custom assignment strategy must be implemented, such that a partition in _M_ can never be assigned to the same host across two different consumer groups. (To the best of our knowledge custom assignment strategies are not yet available in Kafka; however, a [client-side assignment proposal](https://cwiki.apache.org/confluence/x/foynAw) had been drafted in 2015.)
+Furthermore, it is prudent to keep the process sets _P1_ and _P2_ not only disjoint, but also deployed on separate hosts, such that the failure of a process in _P1_ will not correlate to a failure in _P2_, where both failed processes may happen to share role assignments.
