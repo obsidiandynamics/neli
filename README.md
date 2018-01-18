@@ -3,6 +3,11 @@ Non-Exclusive Leader Emergence in Highly Available Systems
 
 Published in [https://github.com/obsidiandynamics/nele](https://github.com/obsidiandynamics/nele) under a BSD (3-clause) license.
 
+
+# Abstract
+The Non-Exclusive Leader Emergence (NELE) protocol provides a mapping from a set of work roles to one or more assignees responsible for fulfilling each role. Its utility is in environments where it’s imperative to maintain near-continuous system availability at the expense of occasional work duplication, and where the duplication of work, while generally undesirable, does not lead to an incorrect outcome. NELE is a simple unimodal protocol that is relatively straightforward to implement, building on a shared ledger service that’s capable of atomic partition assignment, such as Kafka and Kinesis. The latter makes NELE particularly attractive for use in Cloud-based computing environments.
+
+
 # Overview
 This text describes the Non-Exclusive Leader Emergence (NELE, pronounced 'Nelly') protocol built on top of a shared, partitioned ledger capable of atomic partition balancing (such as Apache Kafka or Amazon Kinesis). The protocol yields a non-exclusive leader in a group of contending processes for one of a number of notional roles, such that each role has at least one leader assigned to it. The number of roles is dynamic, as is the number of contending processes. This protocol is useful in scenarios where &mdash;
 
@@ -30,7 +35,7 @@ Each process _p_ in _P_ subscribes to _C_ within a common, predefined consumer g
 
 Each process _p_ in _P_, now being a consumer of _C_, will maintain a vector _V_ of size identical to that of _M_, with each vector element corresponding to a partition in _M_, and initialised to zero. _V_ is sized during initialisation of _p_, by querying the brokers of _M_ to determine the number of partitions in _M_, which will remain a constant. (As opposed to elements in _P_ and _R_ which may vary dynamically.) This implies that _M_ may not be expanded while a group is in operation.
 
-Upon receival of a message _m_ from _C_, _p_ will assign the current machine time as observed by _p_ to the vector element at the index corresponding to _m_'s partition index.
+Upon receipt of a message _m_ from _C_, _p_ will assign the current machine time as observed by _p_ to the vector element at the index corresponding to _m_'s partition index.
 
 Assuming no subsequent partition reassignments have occurred, each _p_'s vector comprises a combination of zero and non-zero values, where zero values denote partitions that haven't been assigned to _p_, and non-zero values correspond to partitions that have been assigned to _p_ at least once in the lifetime of _p_. If the timestamp at any of vector element _i_ is _current_ &mdash; in other words, it is more recent than some predefined constant threshold _T_ that lags the current time &mdash; then _p_ is a leader for _M<sub>i</sub>_. If partition assignment for _M<sub>i</sub>_ is altered (for example, if _p_ is partitioned from the brokers of _M_, or a timeout occurs), then _V<sub>i</sub>_ will cease incrementing and will eventually be lapsed by _T_. At this point, _p_ must no longer assume that it's the leader for _M<sub>i</sub>_.
 
