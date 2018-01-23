@@ -39,6 +39,12 @@ Each process in _P_ continually publishes a message on all partitions in _M_ (ea
 
 Each process _p_ in _P_ subscribes to _C_ within a common, predefined consumer group. As per the broker's partition assignment rules, a partition will be assigned to at most one consumer. Multiple partitions may be assigned to a single consumer, and this number may vary slightly from consumer to consumer. Note &mdash; this is a fundamental assumption of NELI, requiring a broker that is capable of arbitrating partition assignments. This dynamic set _P_ fits the broad definition of dynamic membership as described in Birman [1]. The term _NELI group_ is used to refer to a set _P_ operating under a distinct consumer group. (An alternate consumer group for _P_ implies a completely different NELI group, as partition assignment within the broker is distinct to a consumer group.)
 
+The relationship between _P_ and _M_ is depicted in Figure 1.
+
+<img src="https://rawgit.com/obsidiandynamics/neli/master/figures/Figure%201.svg" width="50%" alt="Figure 1
+"/>
+**Figure 1: Partition mapping from _M_ to _P_**
+
 Each process _p_ in _P_, now being a consumer of _C_, will maintain a vector _V_ of size identical to that of _M_, with each vector element corresponding to a partition in _M_, and initialised to zero. _V_ is sized during initialisation of _p_, by querying the brokers of _M_ to determine the number of partitions in _M_, which will remain a constant. (As opposed to elements in _P_ and _R_ which may vary dynamically.) This implies that _M_ may not be expanded while a group is in operation.
 
 Upon receipt of a message _m_ from _C_, _p_ will assign the current machine time as observed by _p_ to the vector element at the index corresponding to _m_'s partition index.
@@ -93,6 +99,7 @@ By the term _non-exclusive leader_ it is meant that at least one leader may be a
 In a continuously available system, two or more disjoint (non-overlapping) NELI process groups _P1_ and _P2_ (through to _PN_, if necessary) may be used concurrently on the same set _M_ (or a different set _M'_, hosted on an independent set of brokers) and a common _R_, such that any _R<sub>i</sub>_ would be assigned to a member in _P1_ and _P2_, such that there will be at least two leaders for any _R<sub>i</sub>_ at any point in time &mdash; one from each set. Depending on the value of _T_, there may be three leaders during a transition event in any of the groups _P1_ or _P2_, assuming that process failures in _P1_ and _P2_ are uncorrelated.
 
 Furthermore, it is prudent to keep the process sets _P1_ and _P2_ not only disjoint, but also deployed on separate hosts, such that the failure of a process in _P1_ will not correlate to a failure in _P2_, where both failed processes may happen to share role assignments.
+
 
 # References
 [1] K. Birman, "Reliable Distributed Systems", Springer. 2005.
