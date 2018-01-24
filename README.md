@@ -41,8 +41,9 @@ Each process _p_ in _P_ subscribes to _C_ within a common, predefined consumer g
 
 The relationship between _P_ and _M_ is depicted in Figure 1.
 
-<img src="https://rawgit.com/obsidiandynamics/neli/master/figures/Figure%201.svg" width="50%" alt="Figure 1
+<img src="https://rawgit.com/obsidiandynamics/neli/master/figures/Figure%201.svg" width="70%" alt="Figure 1
 "/>
+
 **Figure 1: Partition mapping from _M_ to _P_**
 
 Each process _p_ in _P_, now being a consumer of _C_, will maintain a vector _V_ of size identical to that of _M_, with each vector element corresponding to a partition in _M_, and initialised to zero. _V_ is sized during initialisation of _p_, by querying the brokers of _M_ to determine the number of partitions in _M_, which will remain a constant. (As opposed to elements in _P_ and _R_ which may vary dynamically.) This implies that _M_ may not be expanded while a group is in operation.
@@ -69,6 +70,13 @@ It is also recommended that the `session.timeout.ms` property on the consumer is
 
 
 # Further considerations
+## Topic reuse for independent role-process assignments
+For the sake of clarity and, more importantly, to avoid failure correlation, it is highly recommended to use a dedicated topic for each NELI group, configured in accordance with the group's needs. However, under certain circumstances it may be more appropriate to share a topic across multiple NELI groups. For example, the broker might be offered under a SaaS model, whereby the addition of topics (and partitions) incurs additional costs.
+
+By using a different consumer group ID in a common topic _C_ &mdash; in effect a different NELI group &mdash; the same set of partitions _M_ can be exploited to assign a different set of roles _R'_ to the same or a different set of processes _P_ or _P'_, with no change to the protocol.
+
+When reusing a brokered topic across multiple NELI groups, it is recommended to divide the broadcast frequency by a factor commensurate with the number of NELI groups. In other words, if processes within a single NELI group broadcast with a frequency _F_ to all partitions in _C_, then adding a second NELI group should change the broadcast frequency to _F/2_ for both groups.
+
 ## Exclusivity of role assignment
 It can also be shown that the non-exclusivity property can be turned into one of exclusivity through a straightforward adjustment of the protocol. In other words, the at-least-one leader assignment can be turned into an at-most-one (turning NELI into ELI). This would be done in systems where non-exclusivity cannot be tolerated.
 
@@ -89,9 +97,6 @@ Addressing the above requires that the clocks on the broker and the consumer are
 Of course, the last assumption is not necessarily true. The broker may use other heuristics to trigger reassignment. For example, the broker's host OS may close the TCP socket with the consumer and thereby expedite the reassignment on the broker. The closing of the pipe might not be observed for some time on _p_'s host. Under this scenario, _p_ may falsely assume that it is still the leader. Assuming the broker has no minimum grace period, then this could be solved by observing a grace period on the newly assigned leader _q_, such that _q_ upon detection of leadership assignment, will intentionally return false from the leadership check function for up to time _T_ since it has implicitly acquired leadership. This gives _p_ sufficient time to relinquish leadership, but extends the worst case transition time to _2T_.
 
 Another, more subtle problem stems from the invariant that the check for leadership must _always_ precede an operation on the critical region. (This is true for every system, irrespective of the exclusivity protocol used.) It may be possible, however unlikely, that the check succeeds, but in-between testing the outcome of the check and entering the critical region, the leadership status may have changed. In practice, if _T_ is sufficiently lower than the session timeout, the risk of this happening is very low. However, in non-deterministic systems with no hard real-time scheduling guarantees, one cannot be absolutely certain. Furthermore, even if the protocol is based on sound reasoning or is formally provable, it will only maintain correctness under a finite set of assumptions. In reality, systems may have defects and may experience multiple correlated and uncorrelated failures. So if exclusive mode is required under an environment of absolute assurance, further mechanisms &mdash; such as fencing &mdash; must be used to exclude access to critical regions.
-
-## Topic reuse for independent role-process assignments
-By using a different consumer group ID, the same set of partitions _M_ can be exploited to assign a different set of roles _R'_ to a different set of processes _P'_. In other words, there is no compelling need to establish a new topic for a different set of roles.
 
 ## Use in continuously available systems
 By the term _non-exclusive leader_ it is meant that at least one leader may be assigned; it shouldn't be taken that the assigned leader is actually functioning, network-reachable and is able to fulfill its role at all times. As such, single-group NELI cannot be used directly within a setting of strictly continuous availability, where at least two leaders are _always_ required. Of course, the thresholds used in NELI can be tuned such that the transition time between leaders is minimal, at the expense of work duplication. However, while being arbitrarily responsive (near-continuous), this doesn't formally satisfy continuous availability guarantees, which assume zero downtime under a finite set of assumptions (for example, at most one component failure is tolerated).
