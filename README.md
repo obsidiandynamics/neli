@@ -41,7 +41,7 @@ Each process _p_ in _P_ subscribes to _C_ within a common, predefined consumer g
 
 The relationship between _P_ and _M_ is depicted in Figure 1.
 
-<img src="https://i.imgur.com/RSScamo.png" width="70%" alt="Figure 1"/>
+<img src="https://imgur.com/dA9o3K6.png" width="70%" alt="Figure 1"/>
 
 **Figure 1: Partition mapping from _M_ to _P_**
 
