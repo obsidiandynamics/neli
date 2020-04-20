@@ -1,6 +1,6 @@
 Not-only Exclusive Leader Induction in Highly Available Distributed Systems
 ===
-![Release](https://img.shields.io/github/v/release/obsidiandynamics/neli?color=white)
+![Release](https://img.shields.io/github/v/release/obsidiandynamics/neli?color=grey)
 
 Published in [https://github.com/obsidiandynamics/NELI](https://github.com/obsidiandynamics/NELI) under a BSD (3-clause) license.
 
